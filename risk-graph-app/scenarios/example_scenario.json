@@ -1,0 +1,37 @@
+{
+  "scenario_name": "example_scenario",
+  "description": "Basic decision-risk graph with conditions and terminal outcomes.",
+  "variables": {
+    "trust_low": true,
+    "backup_ready": false,
+    "pressure": 0
+  },
+  "scoring": {
+    "catastrophic_weight": 1000000,
+    "positive_weight": 10000,
+    "harm_weight": 1,
+    "uncertainty_weight": 10,
+    "reversibility_weight": 5
+  },
+  "nodes": [
+    {"id": "dec_share", "label": "Share sensitive plan", "type": "decision", "harm": 1, "terminal": false, "positive": false, "failure": false},
+    {"id": "dec_hold", "label": "Hold and verify", "type": "decision", "harm": 0.5, "terminal": false, "positive": false, "failure": false},
+    {"id": "event_leak", "label": "Leak occurs", "type": "event", "harm": 5, "terminal": false, "positive": false, "failure": false},
+    {"id": "event_prepare", "label": "Mitigation prepared", "type": "event", "harm": 1, "terminal": false, "positive": false, "failure": false},
+    {"id": "outcome_recover", "label": "Recovery path", "type": "outcome", "harm": 2, "terminal": false, "positive": false, "failure": false},
+    {"id": "term_success", "label": "Stable positive result", "type": "terminal_positive", "harm": 0, "terminal": true, "positive": true, "failure": false},
+    {"id": "term_fail", "label": "Catastrophic exposure", "type": "terminal_failure", "harm": 20, "terminal": true, "positive": false, "failure": true}
+  ],
+  "edges": [
+    {"id": "e1", "from": "dec_share", "to": "event_leak", "probability": 0.45, "transition_kind": "fork", "uncertainty": 0.2, "reversibility_cost": 4},
+    {"id": "e2", "from": "dec_share", "to": "event_prepare", "probability": 0.55, "transition_kind": "fork", "effects": [{"var": "backup_ready", "op": "set", "value": true}], "uncertainty": 0.1, "reversibility_cost": 1},
+    {"id": "e3", "from": "dec_hold", "to": "event_prepare", "probability": 0.8, "transition_kind": "branch", "effects": [{"var": "backup_ready", "op": "set", "value": true}], "uncertainty": 0.05, "reversibility_cost": 1},
+    {"id": "e4", "from": "dec_hold", "to": "event_leak", "probability": 0.2, "transition_kind": "branch", "active_if": [{"var": "trust_low", "op": "is_true"}], "uncertainty": 0.1, "reversibility_cost": 2},
+    {"id": "e5", "from": "event_prepare", "to": "outcome_recover", "probability": 0.9, "transition_kind": "resolve", "effects": [{"var": "pressure", "op": "decrement", "value": 1}], "uncertainty": 0.05, "reversibility_cost": 0.5},
+    {"id": "e6", "from": "event_prepare", "to": "term_success", "probability": 0.1, "transition_kind": "resolve", "active_if": [{"var": "backup_ready", "op": "is_true"}], "uncertainty": 0.02, "reversibility_cost": 0.1},
+    {"id": "e7", "from": "event_leak", "to": "term_fail", "probability": 0.5, "transition_kind": "escalate", "effects": [{"var": "pressure", "op": "increment", "value": 2}], "uncertainty": 0.3, "reversibility_cost": 5},
+    {"id": "e8", "from": "event_leak", "to": "outcome_recover", "probability": 0.5, "transition_kind": "resolve", "effects": [{"var": "pressure", "op": "increment", "value": 1}], "uncertainty": 0.2, "reversibility_cost": 2},
+    {"id": "e9", "from": "outcome_recover", "to": "term_success", "probability": 0.7, "transition_kind": "resolve", "active_if": [{"var": "pressure", "op": "less_or_equal", "value": 1}], "uncertainty": 0.05, "reversibility_cost": 0.2},
+    {"id": "e10", "from": "outcome_recover", "to": "term_fail", "probability": 0.3, "transition_kind": "escalate", "active_if": [{"var": "pressure", "op": "greater_than", "value": 1}], "uncertainty": 0.2, "reversibility_cost": 3}
+  ]
+}

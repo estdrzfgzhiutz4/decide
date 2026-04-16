@@ -1,0 +1,60 @@
+{
+  "scenario_name": "example_parallel_fork_scenario",
+  "description": "Advanced scenario with branch coexistence, hard forks, shared-state dependencies, escalation chain, and bounded loop.",
+  "variables": {
+    "a_informed": false,
+    "b_involved": false,
+    "conflict_level": 0,
+    "merge_allowed": false,
+    "mitigation_ready": false
+  },
+  "scoring": {
+    "catastrophic_weight": 1200000,
+    "positive_weight": 15000,
+    "harm_weight": 1,
+    "uncertainty_weight": 12,
+    "reversibility_weight": 8
+  },
+  "nodes": [
+    {"id": "dec_direct", "label": "Direct disclosure", "type": "decision", "harm": 1, "terminal": false, "positive": false, "failure": false},
+    {"id": "dec_buffered", "label": "Buffered rollout", "type": "decision", "harm": 1, "terminal": false, "positive": false, "failure": false},
+    {"id": "evt_a_told", "label": "A is informed", "type": "event", "harm": 2, "terminal": false, "positive": false, "failure": false},
+    {"id": "evt_b_joins", "label": "B joins process", "type": "actor", "harm": 3, "terminal": false, "positive": false, "failure": false},
+    {"id": "evt_parallel_pressure", "label": "Parallel pressure rises", "type": "outcome", "harm": 4, "terminal": false, "positive": false, "failure": false},
+    {"id": "fork_media", "label": "Media narrative diverges", "type": "event", "harm": 3, "terminal": false, "positive": false, "failure": false},
+    {"id": "fork_private", "label": "Private dialogue path", "type": "event", "harm": 1, "terminal": false, "positive": false, "failure": false},
+    {"id": "esc_stage1", "label": "Escalation stage 1", "type": "outcome", "harm": 5, "terminal": false, "positive": false, "failure": false},
+    {"id": "esc_stage2", "label": "Escalation stage 2", "type": "outcome", "harm": 8, "terminal": false, "positive": false, "failure": false},
+    {"id": "resolve_joint", "label": "Joint resolution", "type": "outcome", "harm": 1, "terminal": false, "positive": false, "failure": false},
+    {"id": "term_positive", "label": "Coordinated success", "type": "terminal_positive", "harm": 0, "terminal": true, "positive": true, "failure": false},
+    {"id": "term_failure", "label": "Systemic catastrophic failure", "type": "terminal_failure", "harm": 30, "terminal": true, "positive": false, "failure": true}
+  ],
+  "edges": [
+    {"id": "pf1", "from": "dec_direct", "to": "evt_a_told", "probability": 0.9, "transition_kind": "branch", "effects": [{"var": "a_informed", "op": "set", "value": true}]},
+    {"id": "pf2", "from": "dec_direct", "to": "evt_b_joins", "probability": 0.6, "transition_kind": "branch", "effects": [{"var": "b_involved", "op": "set", "value": true}]},
+    {"id": "pf3", "from": "dec_buffered", "to": "evt_a_told", "probability": 0.7, "transition_kind": "branch", "effects": [{"var": "a_informed", "op": "set", "value": true}, {"var": "mitigation_ready", "op": "set", "value": true}]},
+    {"id": "pf4", "from": "dec_buffered", "to": "fork_private", "probability": 0.3, "transition_kind": "fork"},
+
+    {"id": "pf5", "from": "evt_a_told", "to": "fork_media", "probability": 0.4, "transition_kind": "fork", "effects": [{"var": "conflict_level", "op": "increment", "value": 1}]},
+    {"id": "pf6", "from": "evt_a_told", "to": "fork_private", "probability": 0.6, "transition_kind": "fork", "effects": [{"var": "conflict_level", "op": "decrement", "value": 1}]},
+
+    {"id": "pf7", "from": "evt_b_joins", "to": "evt_parallel_pressure", "probability": 0.8, "transition_kind": "branch", "active_if": [{"var": "a_informed", "op": "is_true"}], "effects": [{"var": "conflict_level", "op": "increment", "value": 2}]},
+
+    {"id": "pf8", "from": "evt_parallel_pressure", "to": "esc_stage1", "probability": 0.7, "transition_kind": "escalate", "active_if": [{"var": "b_involved", "op": "is_true"}, {"var": "conflict_level", "op": "greater_or_equal", "value": 2}]},
+    {"id": "pf9", "from": "evt_parallel_pressure", "to": "resolve_joint", "probability": 0.3, "transition_kind": "resolve", "active_if": [{"var": "mitigation_ready", "op": "is_true"}]},
+
+    {"id": "pf10", "from": "fork_media", "to": "esc_stage1", "probability": 0.8, "transition_kind": "escalate", "effects": [{"var": "conflict_level", "op": "increment", "value": 1}]},
+    {"id": "pf11", "from": "fork_media", "to": "resolve_joint", "probability": 0.2, "transition_kind": "resolve", "active_if": [{"var": "mitigation_ready", "op": "is_true"}]},
+
+    {"id": "pf12", "from": "fork_private", "to": "resolve_joint", "probability": 0.6, "transition_kind": "resolve", "effects": [{"var": "merge_allowed", "op": "set", "value": true}, {"var": "conflict_level", "op": "decrement", "value": 1}]},
+    {"id": "pf13", "from": "fork_private", "to": "esc_stage1", "probability": 0.4, "transition_kind": "escalate", "effects": [{"var": "conflict_level", "op": "increment", "value": 1}]},
+
+    {"id": "pf14", "from": "esc_stage1", "to": "esc_stage2", "probability": 0.7, "transition_kind": "escalate", "effects": [{"var": "conflict_level", "op": "increment", "value": 1}]},
+    {"id": "pf15", "from": "esc_stage1", "to": "resolve_joint", "probability": 0.3, "transition_kind": "resolve", "active_if": [{"var": "mitigation_ready", "op": "is_true"}]},
+    {"id": "pf16", "from": "esc_stage2", "to": "term_failure", "probability": 0.6, "transition_kind": "escalate", "active_if": [{"var": "conflict_level", "op": "greater_or_equal", "value": 3}]},
+    {"id": "pf17", "from": "esc_stage2", "to": "resolve_joint", "probability": 0.4, "transition_kind": "resolve", "active_if": [{"var": "merge_allowed", "op": "is_true"}]},
+
+    {"id": "pf18", "from": "resolve_joint", "to": "term_positive", "probability": 0.9, "transition_kind": "resolve", "active_if": [{"var": "conflict_level", "op": "less_or_equal", "value": 2}]},
+    {"id": "pf19", "from": "resolve_joint", "to": "esc_stage1", "probability": 0.1, "transition_kind": "branch", "active_if": [{"var": "conflict_level", "op": "greater_than", "value": 2}]}
+  ]
+}
