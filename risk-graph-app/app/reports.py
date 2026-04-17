@@ -18,6 +18,7 @@ def create_report_text(
     lines: List[str] = []
     lines.append(f"Scenario: {scenario.scenario_name}")
     lines.append(f"Description: {scenario.description}")
+    lines.append(f"Mode: {scenario.mode}")
     lines.append(f"Variables: {scenario.variables}")
     lines.append("")
     lines.append("Top 3 safest starting decisions:")
@@ -31,6 +32,30 @@ def create_report_text(
         lines.extend([f"- {w}" for w in validation.warnings])
     else:
         lines.append("- None")
+    lines.append("Draft warnings:")
+    if validation.draft_warnings:
+        lines.extend([f"- {w}" for w in validation.draft_warnings])
+    else:
+        lines.append("- None")
+
+    lines.append("")
+    lines.append("Draft/evaluation skips:")
+    if evaluation.skipped_incomplete_edges:
+        lines.append(f"- Skipped incomplete edges: {', '.join(evaluation.skipped_incomplete_edges)}")
+    else:
+        lines.append("- Skipped incomplete edges: none")
+    if evaluation.skipped_decisions:
+        lines.append(f"- Skipped decisions: {', '.join(evaluation.skipped_decisions)}")
+    else:
+        lines.append("- Skipped decisions: none")
+    if scenario.mode == "draft" and (evaluation.skipped_incomplete_edges or evaluation.skipped_decisions):
+        lines.append("- Ranking is partial due to draft/incomplete data.")
+    guessed_nodes = [n.id for n in scenario.nodes if n.draft_status == "guessed"]
+    guessed_edges = [e.id for e in scenario.edges if e.draft_status == "guessed"]
+    lines.append(
+        f"- Guessed items: nodes={', '.join(guessed_nodes) if guessed_nodes else 'none'}; "
+        f"edges={', '.join(guessed_edges) if guessed_edges else 'none'}"
+    )
 
     return "\n".join(lines)
 

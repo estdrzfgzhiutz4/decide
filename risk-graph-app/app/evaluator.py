@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Tuple
 from .conditions import conditions_match
 from .models import DecisionEvaluation, EvaluationSummary, PathSummary, Scenario
 from .state import apply_effects
-from .utils import powerset_including_empty, top_n
+from .utils import is_complete_edge, powerset_including_empty, top_n
 
 
 @dataclass(slots=True)
@@ -46,19 +46,42 @@ def evaluate_scenario(
         outgoing[edge.from_node].append(edge)
 
     results: List[DecisionEvaluation] = []
+    skipped_edges: set[str] = set()
+    skipped_decisions: List[str] = []
     for node in scenario.nodes:
         if node.type != "decision":
             continue
-        results.append(
-            _evaluate_decision(node.id, scenario, node_by_id, outgoing, cfg)
+        node_result, decision_skipped, edge_skips = _evaluate_decision(
+            node.id, scenario, node_by_id, outgoing, cfg
         )
+        skipped_edges.update(edge_skips)
+        if decision_skipped:
+            skipped_decisions.append(node.id)
+            continue
+        results.append(node_result)
 
     results.sort(key=lambda r: r.composite_score)
-    return EvaluationSummary(scenario_name=scenario.scenario_name, decision_results=results)
+    return EvaluationSummary(
+        scenario_name=scenario.scenario_name,
+        decision_results=results,
+        skipped_incomplete_edges=sorted(skipped_edges),
+        skipped_decisions=skipped_decisions,
+        assumptions=[
+            "Incomplete edges are skipped during traversal.",
+            "Decisions without traversable complete edges are excluded from ranking.",
+        ],
+    )
 
 
 def _evaluate_decision(decision_id, scenario, node_by_id, outgoing, cfg):
     terminal_paths: List[PathSummary] = []
+    skipped_edges: set[str] = set()
+    initial_complete = [e for e in outgoing.get(decision_id, []) if is_complete_edge(e)]
+    if not initial_complete:
+        for edge in outgoing.get(decision_id, []):
+            if not is_complete_edge(edge):
+                skipped_edges.add(edge.id or "<missing-id>")
+        return None, True, skipped_edges
     queue: List[_PathState] = [
         _PathState(
             pending_nodes=(decision_id,),
@@ -118,9 +141,13 @@ def _evaluate_decision(decision_id, scenario, node_by_id, outgoing, cfg):
         hit_failure = state.hit_failure or node.failure or node.type == "terminal_failure"
         hit_positive = state.hit_positive or node.positive or node.type == "terminal_positive"
 
-        active_edges = [
-            e for e in outgoing.get(current, []) if conditions_match(e.active_if, state.variables)
-        ]
+        active_edges = []
+        for edge in outgoing.get(current, []):
+            if not is_complete_edge(edge):
+                skipped_edges.add(edge.id or "<missing-id>")
+                continue
+            if conditions_match(edge.active_if, state.variables):
+                active_edges.append(edge)
         if node.terminal or not active_edges:
             queue.append(
                 _PathState(
@@ -188,6 +215,9 @@ def _evaluate_decision(decision_id, scenario, node_by_id, outgoing, cfg):
                     )
                 )
 
+    if not terminal_paths:
+        return None, True, skipped_edges
+
     catastrophic_probability = sum(p.probability for p in terminal_paths if p.ends_in_failure)
     positive_probability = sum(p.probability for p in terminal_paths if p.ends_in_positive)
     expected_harm = sum(p.probability * p.total_harm for p in terminal_paths)
@@ -233,4 +263,4 @@ def _evaluate_decision(decision_id, scenario, node_by_id, outgoing, cfg):
         dangerous_paths=dangerous,
         positive_paths=positive,
         interpretation=interpretation,
-    )
+    ), False, skipped_edges

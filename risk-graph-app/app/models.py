@@ -29,6 +29,8 @@ VALID_CONDITION_OPS = {
 }
 
 VALID_EFFECT_OPS = {"set", "increment", "decrement"}
+VALID_DRAFT_STATUS = {"complete", "incomplete", "guessed"}
+VALID_SCENARIO_MODES = {"strict", "draft"}
 
 
 @dataclass(slots=True)
@@ -47,29 +49,33 @@ class Effect:
 
 @dataclass(slots=True)
 class Node:
-    id: str
-    label: str
-    type: str
+    id: str = ""
+    label: str = ""
+    type: str = ""
     harm: float = 0.0
     terminal: bool = False
     positive: bool = False
     failure: bool = False
     notes: Optional[str] = None
     tags: List[str] = field(default_factory=list)
+    draft_status: str = "complete"
+    draft_note: Optional[str] = None
 
 
 @dataclass(slots=True)
 class Edge:
-    id: str
-    from_node: str
-    to_node: str
-    probability: float
-    transition_kind: str
+    id: str = ""
+    from_node: str = ""
+    to_node: str = ""
+    probability: Optional[float] = None
+    transition_kind: str = ""
     active_if: List[Condition] = field(default_factory=list)
     effects: List[Effect] = field(default_factory=list)
     uncertainty: float = 0.0
     reversibility_cost: float = 0.0
     notes: Optional[str] = None
+    draft_status: str = "complete"
+    draft_note: Optional[str] = None
 
 
 @dataclass(slots=True)
@@ -89,12 +95,17 @@ class Scenario:
     scoring: Scoring
     nodes: List[Node]
     edges: List[Edge]
+    mode: str = "strict"
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    editor: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
 class ValidationResult:
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
+    draft_warnings: List[str] = field(default_factory=list)
+    incomplete_items: List[str] = field(default_factory=list)
 
     @property
     def is_valid(self) -> bool:
@@ -135,3 +146,6 @@ class DecisionEvaluation:
 class EvaluationSummary:
     scenario_name: str
     decision_results: List[DecisionEvaluation]
+    skipped_incomplete_edges: List[str] = field(default_factory=list)
+    skipped_decisions: List[str] = field(default_factory=list)
+    assumptions: List[str] = field(default_factory=list)

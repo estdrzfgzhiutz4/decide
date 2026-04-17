@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Risk Graph Editor</title>
+  <link rel="stylesheet" href="/static/editor.css" />
+</head>
+<body>
+  <header class="topbar">
+    <button id="loadBtn">Load</button>
+    <button id="saveBtn">Save (Strict)</button>
+    <button id="saveDraftBtn">Save Draft</button>
+    <button id="validateBtn">Validate</button>
+    <button id="evaluateBtn">Evaluate</button>
+    <button id="renderBtn">Render Preview</button>
+    <span id="currentPath"></span>
+  </header>
+
+  <main class="layout">
+    <aside class="left">
+      <h3>Scenario</h3>
+      <div class="block">
+        <button id="addDecisionBtn">Add decision</button>
+        <button id="addEventBtn">Add event</button>
+        <button id="addOutcomeBtn">Add outcome</button>
+        <button id="addPositiveBtn">Add + terminal</button>
+        <button id="addFailureBtn">Add failure terminal</button>
+        <button id="addEdgeBtn">Add edge</button>
+      </div>
+      <h4>Variables</h4>
+      <ul id="variablesList"></ul>
+      <button id="addVarBtn">Add variable</button>
+
+      <h4>Nodes</h4>
+      <input id="nodeFilter" placeholder="filter nodes" />
+      <ul id="nodesList"></ul>
+
+      <h4>Edges</h4>
+      <input id="edgeFilter" placeholder="filter edges" />
+      <ul id="edgesList"></ul>
+    </aside>
+
+    <section class="main">
+      <h3>Selected Item Editor</h3>
+      <div id="scenarioForm" class="form"></div>
+      <div id="itemForm" class="form"></div>
+    </section>
+
+    <aside class="right">
+      <h3>Status</h3>
+      <pre id="status"></pre>
+      <h3>Graph Preview</h3>
+      <div id="previewWrap"><em>No preview yet.</em></div>
+    </aside>
+  </main>
+
+  <script src="/static/editor.js"></script>
+</body>
+</html>

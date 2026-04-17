@@ -5,9 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from graphviz import Digraph
-
 from .models import EvaluationSummary, Scenario
+from .utils import is_complete_edge
 
 
 NODE_SHAPES = {
@@ -34,11 +33,13 @@ def render_scenario(
     if evaluation and evaluation.decision_results:
         safest = evaluation.decision_results[0].decision_node_id
 
+    from graphviz import Digraph
+
     dot = Digraph(comment=scenario.scenario_name, format=fmt)
     dot.attr(rankdir="LR")
 
     for node in scenario.nodes:
-        shape = NODE_SHAPES[node.type]
+        shape = NODE_SHAPES.get(node.type, "ellipse")
         color = "black"
         fill = "white"
         penwidth = "1"
@@ -64,6 +65,16 @@ def render_scenario(
         )
 
     for edge in scenario.edges:
+        if not is_complete_edge(edge):
+            if edge.from_node and edge.to_node:
+                dot.edge(
+                    edge.from_node,
+                    edge.to_node,
+                    label=f"incomplete ({edge.id or 'edge'})",
+                    style="dashed",
+                    color="darkorange",
+                )
+            continue
         cond_text = ""
         if edge.active_if:
             parts = [f"{c.var} {c.op} {c.value}" for c in edge.active_if]

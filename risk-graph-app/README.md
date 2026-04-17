@@ -1,25 +1,23 @@
 # risk-graph-app
 
-CLI-first local Python app for modeling and comparing branching decision futures with strong catastrophic-risk avoidance.
+Local-only macOS Python app for planning branching futures with catastrophic-risk-averse scoring.
 
-## Purpose
+## What this app does
 
-`risk-graph-app` evaluates **starting decisions** across the full reachable future graph (not greedily one step at a time). It supports:
+- Models decisions, events, actors, outcomes, positive terminals, and catastrophic terminals.
+- Supports branch coexistence, hard forks (exclusive per path), shared-state dependencies, escalation chains, and bounded loops.
+- Evaluates each starting decision across full reachable future states.
+- Ranks top 3 safest decisions (lower score is better) with catastrophe dominance.
+- Renders graph via Graphviz (SVG/PNG).
+- Provides a local browser editor for easier authoring while JSON remains canonical storage.
 
-- Coexisting branches in the same scope.
-- Hard fork alternatives that are mutually exclusive **within a single path** but remain visible globally for planning.
-- State-variable dependencies via conditions and effects.
-- Escalation chains, resolve transitions, and bounded loops.
-- Top-3 safest decision ranking with explicit downstream impact metrics.
-
-No LLMs, no network services, no database, no GUI framework.
+No cloud, no LLM, no database, no YAML, no frontend build tool.
 
 ## Requirements
 
-- macOS
 - Python 3.11+
-- Graphviz binary installed locally (e.g., `brew install graphviz`)
-- Python dependency: `graphviz`
+- Graphviz binary installed (`brew install graphviz`)
+- Python package: `graphviz`
 
 ## Install
 
@@ -29,7 +27,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## CLI usage
+## CLI commands
+
+Existing:
 
 ```bash
 python main.py validate scenarios/example_scenario.json
@@ -39,84 +39,101 @@ python main.py render scenarios/example_scenario.json --format png
 python main.py report scenarios/example_scenario.json
 ```
 
-Render output goes into `output/`. Report output is `output/report.txt`.
+New:
 
-## Scenario JSON structure
+```bash
+python main.py validate scenarios/draft_example.json --mode draft
+python main.py edit scenarios/example_scenario.json
+python main.py new-draft scenarios/my_draft.json
+python main.py new-draft scenarios/my_draft.json --open-editor
+```
 
-Top-level fields:
+## Strict vs draft mode
 
-- `scenario_name` (string)
-- `description` (string)
-- `variables` (object of primitive values)
-- `scoring` with:
-  - `catastrophic_weight`
-  - `positive_weight`
-  - `harm_weight`
-  - `uncertainty_weight`
-  - `reversibility_weight`
-- `nodes` array
-- `edges` array
+### Strict mode
 
-### Nodes
+- Enforces complete required fields.
+- Incomplete nodes/edges are errors.
+- Intended for reliable evaluate/render/report runs.
 
-Fields:
+### Draft mode
 
-- `id` (unique string)
-- `label` (string)
-- `type` in `decision,event,actor,outcome,terminal_positive,terminal_failure`
-- `harm` (number, default `0`)
-- `terminal` (boolean)
-- `positive` (boolean)
-- `failure` (boolean)
-- `notes` (optional)
-- `tags` (optional list)
+- Allows incomplete items during authoring.
+- Incomplete edges are warnings and saved in JSON.
+- Evaluator skips incomplete edges and may skip unevaluable decisions.
+- Report explicitly lists skipped/incomplete/guessed details.
 
-### Edges
+## Draft semantics
 
-Fields:
+Supported draft fields (optional, backward compatible):
 
-- `id` (unique string)
-- `from` / `to` (node ids)
-- `probability` (0..1)
-- `transition_kind` in `branch,fork,escalate,resolve`
-- `active_if` (optional condition list)
-- `effects` (optional state mutations)
-- `uncertainty` (0..1, default `0`)
-- `reversibility_cost` (number, default `0`)
-- `notes` (optional)
+- `scenario.mode`: `strict | draft`
+- `scenario.metadata`: object
+- `scenario.editor`: object
+- `node.draft_status`: `complete | incomplete | guessed`
+- `node.draft_note`: string
+- `edge.draft_status`: `complete | incomplete | guessed`
+- `edge.draft_note`: string
 
-### Condition ops
+Backward compatibility: old files without these fields still load and evaluate.
 
-- `equals`, `not_equals`, `is_true`, `is_false`
-- `greater_than`, `greater_or_equal`, `less_than`, `less_or_equal`
+## Editor usage
 
-### Effect ops
+Run:
 
-- `set`, `increment`, `decrement`
+```bash
+python main.py edit scenarios/example_scenario.json
+```
 
-## Transition semantics
+Editor features:
 
-- **branch**: independent/coexisting consequences in same scope (handled as independent probabilistic events).
-- **fork**: exclusive alternatives per simulated path; sibling fork branches remain visible in scenario/reporting.
-- **escalate**: worsens pressure/risk chain.
-- **resolve**: de-escalates or safely closes chain.
+- Load scenario
+- Save strict / Save draft
+- Add/edit/delete nodes and edges
+- Edit top-level variables and scoring
+- Validate (strict or draft)
+- Evaluate current in-memory scenario
+- Render SVG preview
+- Status panel for errors/warnings/draft warnings/skipped items
 
-## Fork probabilities vs branch probabilities
+UI structure:
 
-V1 intentionally treats probability mass differently:
+- Left: variables, nodes, edges lists + quick-add buttons
+- Main: selected item form editor
+- Top: load/save/validate/evaluate/render actions
+- Right: status + preview
 
-- Fork siblings from same source should usually sum near 1.0 (validator warns if not).
-- Branch edges may be independent and are **not required** to sum to 1.0.
+Authoring helpers:
 
-## Loops and staged escalation
+- Auto-generate IDs from labels
+- Duplicate node/edge
+- Search/filter nodes/edges
+- Mark guessed/incomplete/complete flags
 
-The engine supports bounded loops with safeguards:
+## Scenario model (JSON)
 
-- `max_depth` (default `12`)
-- `max_visits_per_node` (default `2`)
-- `probability_cutoff` (default `0.01`)
+Top-level:
 
-Many real-world repeated patterns are better modeled as staged escalation nodes instead of literal cycles.
+- `scenario_name`, `description`, `variables`, `scoring`, `nodes`, `edges`
+- Optional: `mode`, `metadata`, `editor`
+
+Edge semantics:
+
+- `branch`: independent/coexisting consequences in same scope
+- `fork`: mutually exclusive alternatives per simulated path
+- `escalate`: risk/pressure worsens
+- `resolve`: de-escalation/closure
+
+Probability interpretation:
+
+- Fork siblings should typically sum near 1.0 (validator warns if not).
+- Branch edges are independent and need not sum to 1.0.
+
+Loop controls:
+
+- `max_depth=12`
+- `max_visits_per_node=2`
+- `probability_cutoff=0.01`
 
 ## Scoring
 
@@ -131,44 +148,34 @@ composite_score =
   + reversibility_weight * expected_reversibility_penalty
 ```
 
-Catastrophic risk is designed to dominate ranking.
+## Rendering behavior in draft mode
 
-## Validation behavior
+- Complete edges render normally.
+- Incomplete edges with known endpoints render as dashed placeholders.
+- Incomplete edges missing endpoints are omitted.
 
-Validator catches:
+## Example files
 
-- duplicate node/edge IDs
-- missing node references
-- invalid ranges/types/ops
-- terminal nodes with outgoing edges
-- decision nodes with no outgoing edges
-- unknown variables in conditions
-- unknown variables in effects (**rejected in V1** to prevent typo-induced silent variable creation)
+- `scenarios/example_scenario.json`
+- `scenarios/example_parallel_fork_scenario.json`
+- `scenarios/draft_example.json` (contains guessed + incomplete content intentionally)
 
-Unreachable nodes are warnings.
+## Example authoring workflow
 
-## Example output summary (evaluate)
+1. `python main.py new-draft scenarios/my_draft.json --open-editor`
+2. Add a few decision nodes and rough edges.
+3. Save draft repeatedly while ideas are incomplete.
+4. Use draft validate to inspect warnings.
+5. Fill missing edge fields and set draft status to complete.
+6. Run strict validate/evaluate/render/report once modeling is complete.
 
-- Ranked decisions safest-first
-- Catastrophic probability
-- Positive-end probability
-- Expected harm
-- Composite score
-
-`report` additionally includes:
-
-- top-3 safest starting decisions
-- top dangerous paths (up to 5)
-- top positive paths
-- back-propagated interpretation sentence per decision
-- validation warnings and unreachable nodes
-
-## Run on macOS
+## Run updated editor on macOS
 
 1. `python3 -m venv .venv`
 2. `source .venv/bin/activate`
 3. `pip install -r requirements.txt`
-4. `python main.py validate scenarios/example_scenario.json`
-5. `python main.py evaluate scenarios/example_scenario.json`
-6. `python main.py render scenarios/example_scenario.json --format svg`
-7. `python main.py report scenarios/example_scenario.json`
+4. `python main.py edit scenarios/draft_example.json`
+5. In browser, click **Save Draft**
+6. `python main.py validate scenarios/draft_example.json --mode draft`
+7. `python main.py evaluate scenarios/draft_example.json`
+8. `python main.py render scenarios/draft_example.json --format svg`
