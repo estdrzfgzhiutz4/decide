@@ -1,0 +1,15 @@
+body { font-family: Arial, sans-serif; margin: 0; }
+.topbar { padding: 8px; background:#20232a; color:#fff; display:flex; gap:8px; align-items:center; }
+.topbar button { padding:6px 10px; }
+.layout { display:grid; grid-template-columns: 300px 1fr 420px; min-height: calc(100vh - 44px); }
+.left, .main, .right { padding:10px; border-right:1px solid #ddd; overflow:auto; }
+.right { border-right:none; background:#fafafa; }
+ul { list-style:none; padding:0; margin:0 0 8px 0; }
+li { padding:4px; border-bottom:1px solid #eee; cursor:pointer; }
+li:hover { background:#f0f7ff; }
+.form label { display:block; margin-top:8px; font-size:13px; }
+.form input, .form textarea, .form select { width:100%; padding:6px; box-sizing:border-box; }
+.block { display:grid; gap:6px; margin-bottom:10px; }
+button.small { margin-top:4px; }
+pre { white-space: pre-wrap; background:#111; color:#d6ffd6; padding:8px; min-height:120px; }
+#previewWrap svg { width:100%; height:auto; border:1px solid #ddd; background:#fff; }

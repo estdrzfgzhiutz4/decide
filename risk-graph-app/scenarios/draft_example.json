@@ -1,0 +1,27 @@
+{
+  "scenario_name": "draft_example",
+  "description": "Intentionally incomplete draft scenario for authoring workflow.",
+  "mode": "draft",
+  "variables": {
+    "ready": false,
+    "risk": 0
+  },
+  "scoring": {
+    "catastrophic_weight": 1000000,
+    "positive_weight": 10000,
+    "harm_weight": 1,
+    "uncertainty_weight": 10,
+    "reversibility_weight": 5
+  },
+  "nodes": [
+    {"id": "d_complete", "label": "Use safe path", "type": "decision", "harm": 0, "terminal": false, "positive": false, "failure": false, "draft_status": "complete"},
+    {"id": "d_incomplete", "label": "Unfinished decision", "type": "decision", "harm": 0, "terminal": false, "positive": false, "failure": false, "draft_status": "incomplete", "draft_note": "Need to model outcomes"},
+    {"id": "ok", "label": "Positive finish", "type": "terminal_positive", "harm": 0, "terminal": true, "positive": true, "failure": false, "draft_status": "complete"},
+    {"id": "bad", "label": "Catastrophic", "type": "terminal_failure", "harm": 20, "terminal": true, "positive": false, "failure": true, "draft_status": "complete"}
+  ],
+  "edges": [
+    {"id": "de1", "from": "d_complete", "to": "ok", "probability": 0.9, "transition_kind": "resolve", "draft_status": "complete"},
+    {"id": "de2", "from": "d_complete", "to": "bad", "probability": 0.1, "transition_kind": "fork", "draft_status": "guessed", "draft_note": "Rough estimate"},
+    {"id": "de3", "from": "d_incomplete", "to": "bad", "transition_kind": "escalate", "draft_status": "incomplete", "draft_note": "Missing probability intentionally"}
+  ]
+}
